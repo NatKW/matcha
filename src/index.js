@@ -1,12 +1,12 @@
-import express from "express";
 import dotenv from "dotenv";
+import "./config/db.js";
+import app from "./app.js";
 
 dotenv.config();
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("Matcha API is running 🚀");
 });
 
