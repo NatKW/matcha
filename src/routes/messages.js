@@ -1,12 +1,13 @@
 import { Router } from "express";
 import pool from "../config/db.js";
+import authMiddleware from "../middlewares/auth.js";
 
 const messagesRouter = Router();
 
 // 🔹 POST /messages → envoyer un message
-messagesRouter.post("/", async (req, res) => {
-  const { sender_id, receiver_id, content } = req.body;
-
+messagesRouter.post("/", authMiddleware, async (req, res) => {
+  const sender_id = req.user.userId;
+  const { receiver_id, content } = req.body;
   if (!sender_id || !receiver_id || !content) {
     return res.status(400).json({ error: "Champs requis manquants" });
   }

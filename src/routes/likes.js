@@ -1,10 +1,11 @@
 import { Router } from "express";
 import pool from "../config/db.js";
+import authMiddleware from "../middlewares/auth.js";
 
 const likesRouter = Router();
 
 // 🔹 POST /likes → créer un like simple
-likesRouter.post("/", async (req, res) => {
+likesRouter.post("/", authMiddleware, async (req, res) => {
   try {
     const { user_id, photo_id } = req.body;
 

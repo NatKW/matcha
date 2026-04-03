@@ -1,10 +1,11 @@
 import { Router } from "express";
 import pool from "../config/db.js";
+import authMiddleware from "../middlewares/auth.js";
 
 const matchesRouter = Router();
 
 // 🔹 GET /matches/:user_id → récupérer tous les matches d’un user
-matchesRouter.get("/:user_id", async (req, res) => {
+matchesRouter.get("/:user_id", authMiddleware, async (req, res) => {
   const { user_id } = req.params;
 
   try {

@@ -1,11 +1,13 @@
 // src/routes/photos.js
 import { Router } from "express";
 import pool from "../config/db.js";
+import authMiddleware from "../middlewares/auth.js";
+
 
 const photosRouter = Router();
 
 // 🔹 GET /photos → récupérer toutes les photos
-photosRouter.get("/", async (_req, res) => {
+photosRouter.get("/", authMiddleware, async (_req, res) => {
   try {
     const result = await pool.query("SELECT * FROM photos ORDER BY id ASC");
     res.json(result.rows);
@@ -37,7 +39,7 @@ photosRouter.get("/user/:user_id", async (req, res) => {
 });
 
 // 🔹 POST /photos → créer une photo
-photosRouter.post("/", async (req, res) => {
+photosRouter.post("/", authMiddleware, async (req, res) => {
   try {
     const { user_id, url } = req.body;
 
