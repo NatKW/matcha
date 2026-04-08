@@ -2,126 +2,120 @@ import { Router } from "express";
 import pool from "../config/db.js";
 import authMiddleware from "../middlewares/auth.js";
 
-const likesRouter = Router();
+const photosRouter = Router();
 
-// 🔹 POST /likes → créer un like simple
-likesRouter.post("/", authMiddleware, async (req, res) => {
+// 🔹 GET /photos → récupérer toutes les photos
+photosRouter.get("/", authMiddleware, async (_req, res) => {
   try {
-    const { user_id, photo_id } = req.body;
+    const result = await pool.query(
+      "SELECT * FROM photos ORDER BY id ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erreur GET /photos:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
-    if (!user_id || !photo_id) {
-      return res.status(400).json({ error: "Champs requis manquants" });
+// 🔹 GET /photos/user/:user_id → photos d’un utilisateur
+photosRouter.get("/user/:user_id", authMiddleware, async (req, res) => {
+  const { user_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM photos WHERE user_id = $1 ORDER BY id ASC",
+      [user_id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Erreur GET /photos/user:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// 🔹 POST /photos → créer une photo
+photosRouter.post("/", authMiddleware, async (req, res) => {
+  const user_id = req.user.userId; // 🔐 sécurisé
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: "URL manquante" });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO photos (user_id, url)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [user_id, url]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("Erreur POST /photos:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// 🔹 PUT /photos/:id → modifier une photo
+photosRouter.put("/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.user.userId;
+  const { url } = req.body;
+
+  try {
+    // 🔐 vérifier que la photo appartient à l'utilisateur
+    const check = await pool.query(
+      "SELECT * FROM photos WHERE id = $1 AND user_id = $2",
+      [id, user_id]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(403).json({ error: "Accès interdit" });
     }
 
     const result = await pool.query(
-      `INSERT INTO likes (user_id, photo_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING
+      `UPDATE photos
+       SET url = $1
+       WHERE id = $2
        RETURNING *`,
-      [user_id, photo_id]
+      [url, id]
     );
 
-    res.status(201).json(result.rows[0] || null);
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error("Erreur POST /likes:", err);
+    console.error("Erreur PUT /photos:", err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-// 🔹 GET /likes → vérifier si un like existe
-likesRouter.get("/", async (req, res) => {
+// 🔹 DELETE /photos/:id → supprimer une photo
+photosRouter.delete("/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.user.userId;
+
   try {
-    const { user_id, photo_id } = req.query;
-
-    if (!user_id || !photo_id) {
-      return res.status(400).json({ error: "Champs requis manquants" });
-    }
-
-    const result = await pool.query(
-      `SELECT * FROM likes WHERE user_id = $1 AND photo_id = $2`,
-      [user_id, photo_id]
+    // 🔐 vérifier que la photo appartient à l'utilisateur
+    const check = await pool.query(
+      "SELECT * FROM photos WHERE id = $1 AND user_id = $2",
+      [id, user_id]
     );
 
-    res.json({ exists: result.rows.length > 0 });
+    if (check.rows.length === 0) {
+      return res.status(403).json({ error: "Accès interdit" });
+    }
+
+    await pool.query(
+      "DELETE FROM photos WHERE id = $1",
+      [id]
+    );
+
+    res.json({ message: "Photo supprimée avec succès" });
   } catch (err) {
-    console.error("Erreur GET /likes:", err);
+    console.error("Erreur DELETE /photos:", err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-// 🔹 POST /likes/match → créer un match si le like est réciproque
-likesRouter.post("/match", async (req, res) => {
-  try {
-    const { user_id, photo_id } = req.body;
-
-    if (!user_id || !photo_id) {
-      return res.status(400).json({ error: "Champs requis manquants" });
-    }
-
-    // 1️⃣ Trouver le propriétaire de la photo likée
-    const photoRes = await pool.query(
-      `SELECT user_id FROM photos WHERE id = $1`,
-      [photo_id]
-    );
-
-    if (photoRes.rows.length === 0) {
-      return res.status(404).json({ error: "Photo introuvable" });
-    }
-
-    const ownerId = photoRes.rows[0].user_id;
-
-    // empêcher de liker soi-même
-    if (ownerId === Number(user_id)) {
-      return res.status(400).json({ error: "Impossible de se liker soi-même" });
-    }
-
-    // 2️⃣ Vérifier si le propriétaire a déjà liké une photo du demandeur
-    const reciprocal = await pool.query(
-      `SELECT 1 FROM likes
-       WHERE user_id = $1
-       AND photo_id IN (
-         SELECT id FROM photos WHERE user_id = $2
-       )
-       LIMIT 1`,
-      [ownerId, user_id]
-    );
-
-    // 3️⃣ Ajouter le like actuel
-    const likeResult = await pool.query(
-      `INSERT INTO likes (user_id, photo_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
-      [user_id, photo_id]
-    );
-
-    // Si pas de like réciproque, on renvoie juste le like
-    if (reciprocal.rows.length === 0) {
-      return res.status(201).json({
-        like: likeResult.rows[0] || null,
-        match: false
-      });
-    }
-
-    // 4️⃣ Créer le match
-    const matchResult = await pool.query(
-      `INSERT INTO matches (user1_id, user2_id)
-       VALUES (LEAST($1, $2), GREATEST($1, $2))
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
-      [user_id, ownerId]
-    );
-
-    res.status(201).json({
-      like: likeResult.rows[0] || null,
-      match: true,
-      matchData: matchResult.rows[0] || null
-    });
-
-  } catch (err) {
-    console.error("Erreur POST /likes/match:", err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-
-export default likesRouter;
+export default photosRouter;

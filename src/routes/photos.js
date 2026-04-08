@@ -62,7 +62,7 @@ photosRouter.post("/", authMiddleware, async (req, res) => {
 });
 
 // 🔹 PUT /photos/:id → modifier une photo
-photosRouter.put("/:id", async (req, res) => {
+photosRouter.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { user_id, url } = req.body;
@@ -87,7 +87,7 @@ photosRouter.put("/:id", async (req, res) => {
 });
 
 // 🔹 DELETE /photos/:id → supprimer une photo
-photosRouter.delete("/:id", async (req, res) => {
+photosRouter.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
