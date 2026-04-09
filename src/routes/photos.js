@@ -2,7 +2,7 @@
 import { Router } from "express";
 import pool from "../config/db.js";
 import authMiddleware from "../middlewares/auth.js";
-
+import upload from "../middlewares/upload.js";
 
 const photosRouter = Router();
 
@@ -38,28 +38,40 @@ photosRouter.get("/user/:user_id", async (req, res) => {
   }
 });
 
-// 🔹 POST /photos → créer une photo
-photosRouter.post("/", authMiddleware, async (req, res) => {
-  try {
-    const { user_id, url } = req.body;
+// 🔹 POST /photos → upload image + créer photo
+photosRouter.post(
+  "/",
+  authMiddleware,
+  upload.single("image"), (err, req, res, next) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  },
+  async (req, res) => {
+    const user_id = req.user.userId;
 
-    if (!user_id || !url) {
-      return res.status(400).json({ error: "Champs requis manquants" });
+    if (!req.file) {
+      return res.status(400).json({ error: "Image manquante" });
     }
 
-    const result = await pool.query(
-      `INSERT INTO photos (user_id, url)
-       VALUES ($1, $2)
-       RETURNING *`,
-      [user_id, url]
-    );
+    const imageUrl = `/uploads/${req.file.filename}`;
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error("Erreur POST /photos:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    try {
+      const result = await pool.query(
+        `INSERT INTO photos (user_id, url)
+         VALUES ($1, $2)
+         RETURNING *`,
+        [user_id, imageUrl]
+      );
+
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      console.error("Erreur upload photo:", err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
   }
-});
+);
 
 // 🔹 PUT /photos/:id → modifier une photo
 photosRouter.put("/:id", authMiddleware, async (req, res) => {
