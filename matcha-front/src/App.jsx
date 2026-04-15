@@ -1,23 +1,29 @@
 import { useState } from "react";
 import Login from "./pages/Login";
 import Upload from "./pages/Upload";
-import './App.css'
+import Photos from "./pages/Photos";
+import "./App.css";
 
-function App() {
+export default function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
 
-  <button onClick={() => {
-  localStorage.removeItem("token");
-  setToken(null);
-}}>
-  Logout
-</button>
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+  };
+
+  console.log("TOKEN =", token);
 
   if (!token) {
     return <Login setToken={setToken} />;
   }
 
-  return <Upload token={token} />;
-}
+  return (
+    <>
+      <button onClick={handleLogout}>Logout</button>
 
-export default App;
+      <Upload token={token} />
+      <Photos token={token} />
+    </>
+  );
+}
