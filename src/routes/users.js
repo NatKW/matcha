@@ -75,6 +75,8 @@ usersRouter.post("/login", async (req, res) => {
       { expiresIn: "1h" }
     );
 
+    console.log("TOKEN GENERE AVEC SECRET:", process.env.JWT_SECRET);
+
     // 🔐 supprimer password avant retour
     delete user.password;
 

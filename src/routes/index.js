@@ -1,22 +1,20 @@
 import { Router } from "express";
-
+import usersRouter from "./users.js";
+import photosRouter from "./photos.js";
 import likesRouter from "./likes.js";
 import matchesRouter from "./matches.js";
 import messagesRouter from "./messages.js";
-import photosRouter from "./photos.js";
-import usersRouter from "./users.js";
 
 const router = Router();
 
-// route de test
 router.get("/", (req, res) => {
-  res.send("Matcha API structured 🚀");
+  res.send("API is structured 🚀");
 });
 
+router.use("/users", usersRouter);
+router.use("/photos", photosRouter);
 router.use("/likes", likesRouter);
 router.use("/matches", matchesRouter);
 router.use("/messages", messagesRouter);
-router.use("/photos", photosRouter);
-router.use("/users", usersRouter);
 
 export default router;
