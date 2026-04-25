@@ -8,7 +8,7 @@ import messagesRouter from "./messages.js";
 const router = Router();
 
 router.get("/", (req, res) => {
-  res.send("API is structured 🚀");
+  res.send("Matcha API structured 🚀");
 });
 
 router.use("/users", usersRouter);

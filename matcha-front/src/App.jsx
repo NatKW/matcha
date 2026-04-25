@@ -4,15 +4,13 @@ import Upload from "./pages/Upload";
 import Photos from "./pages/Photos";
 import "./App.css";
 
-export default function App() {
+function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     setToken(null);
   };
-
-  console.log("TOKEN =", token);
 
   if (!token) {
     return <Login setToken={setToken} />;
@@ -21,9 +19,10 @@ export default function App() {
   return (
     <>
       <button onClick={handleLogout}>Logout</button>
-
       <Upload token={token} />
       <Photos token={token} />
     </>
   );
 }
+
+export default App;

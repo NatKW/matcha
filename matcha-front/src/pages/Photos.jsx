@@ -1,88 +1,86 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../api/api";
 
-export default function Photos({ token }) {
+export default function Photos() {
   const [photos, setPhotos] = useState([]);
 
-useEffect(() => {
-  fetch("http://localhost:3000/api/photos", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("PHOTOS DATA:", data);
+  // 🔹 Charger les photos
+  useEffect(() => {
+    const loadPhotos = async () => {
+      try {
+        const data = await apiFetch("/photos");
 
-      if (Array.isArray(data)) {
-        setPhotos(data);
-      } else {
-        console.error("Erreur API:", data);
-        setPhotos([]); // 🔥 évite crash
+        if (!data) return; // cas 403 → déjà géré
+
+        console.log("PHOTOS DATA:", data);
+
+        setPhotos(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
       }
-    })
-    .catch((err) => console.error(err));
-}, [token]);
+    };
 
-const likePhoto = async (photo_id) => {
-  try {
-    const res = await fetch("http://localhost:3000/api/likes", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ photo_id }),
-    });
+    loadPhotos();
+  }, []);
 
-    const data = await res.json();
+  // 🔹 Like
+  const [matchMessage, setMatchMessage] = useState(null);
+  const likePhoto = async (photo_id) => {
+    try {
+      const data = await apiFetch("/likes", "POST", { photo_id });
 
-    console.log("LIKE RESPONSE:", data);
+      if (!data) return;
 
-    if (data.match) {
-      alert("🔥 MATCH !");
+      console.log("LIKE RESPONSE:", data);
+
+      if (data.match) {
+        if (data.match) {
+          setMatchMessage("🎉 It's a MATCH !");
+          setTimeout(() => setMatchMessage(null), 5000);
+        }
+      }
+
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-  } catch (err) {
-    console.error(err);
-  }
-};
+  // 🔹 Delete
+  const deletePhoto = async (id) => {
+    try {
+      const res = await apiFetch(`/photos/${id}`, "DELETE");
 
-const deletePhoto = async (id) => {
-  try {
-    await fetch(`http://localhost:3000/api/photos/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      if (!res) return;
 
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
-  } catch (err) {
-    console.error(err);
-  }
-};
+      setPhotos((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div>
       <h2>Galerie</h2>
+      {/* 🔥 message match */}
+    {matchMessage && <p>{matchMessage}</p>}
 
-      {Array.isArray(photos) &&
-        photos.map((photo) => (
-          <div key={photo.id}>
-            <img
-              src={`http://localhost:3000/${photo.url}`}
-              alt="photo"
-              width="150"
-            />
-            <button onClick={() => likePhoto(photo.id)}>
-              ❤️ Like
-            </button>
+      {photos.map((photo) => (
+        <div key={photo.id}>
+          <img
+            src={`http://localhost:3000/${photo.url}`}
+            alt="photo"
+            width="150"
+          />
 
-            <button onClick={() => deletePhoto(photo.id)}>
-              Delete
-            </button>
-          </div>
-        ))}
+          <button onClick={() => likePhoto(photo.id)}>
+            ❤️ Like
+          </button>
+
+          <button onClick={() => deletePhoto(photo.id)}>
+            Delete
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

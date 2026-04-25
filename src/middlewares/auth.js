@@ -25,4 +25,9 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+if (res.status === 403) {
+  localStorage.removeItem("token");
+  window.location.href = "/login";
+}
+
 export default authMiddleware;

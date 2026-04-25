@@ -4,26 +4,17 @@ import authMiddleware from "../middlewares/auth.js";
 
 const likesRouter = Router();
 
-// 🔹 POST /likes → liker une photo + créer match si réciproque
+// 🔹 POST /likes → liker une photo + match si réciproque
 likesRouter.post("/", authMiddleware, async (req, res) => {
   try {
-    const user_id = req.user.userId; // 🔥 vient du JWT
+    const user_id = req.user.userId;
     const { photo_id } = req.body;
 
     if (!photo_id) {
       return res.status(400).json({ error: "photo_id requis" });
     }
 
-    // 1️⃣ Ajouter le like
-    const likeResult = await pool.query(
-      `INSERT INTO likes (user_id, photo_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
-      [user_id, photo_id]
-    );
-
-    // 2️⃣ Trouver le propriétaire de la photo
+    // 1️⃣ Vérifier la photo + owner
     const photoRes = await pool.query(
       `SELECT user_id FROM photos WHERE id = $1`,
       [photo_id]
@@ -35,42 +26,60 @@ likesRouter.post("/", authMiddleware, async (req, res) => {
 
     const ownerId = photoRes.rows[0].user_id;
 
-    // ❌ éviter auto-like
+    // ❌ empêcher auto-like
     if (ownerId === user_id) {
       return res.status(400).json({ error: "Impossible de se liker soi-même" });
     }
 
-    // 3️⃣ Vérifier like inverse
+    // 2️⃣ Ajouter le like
+    const likeResult = await pool.query(
+      `INSERT INTO likes (user_id, photo_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [user_id, photo_id]
+    );
+
+    // si déjà liké → on stoppe proprement
+    const alreadyLiked = likeResult.rows.length === 0;
+
+    // 3️⃣ Vérifier like réciproque (simplifié)
     const reciprocal = await pool.query(
-      `SELECT 1 FROM likes
-       WHERE user_id = $1
-       AND photo_id IN (
-         SELECT id FROM photos WHERE user_id = $2
-       )
-       LIMIT 1`,
+      `
+      SELECT 1
+      FROM likes l
+      JOIN photos p ON p.id = l.photo_id
+      WHERE l.user_id = $1
+        AND p.user_id = $2
+      LIMIT 1
+      `,
       [ownerId, user_id]
     );
 
-    if (reciprocal.rows.length === 0) {
-      return res.status(201).json({
-        like: likeResult.rows[0] || null,
-        match: false
-      });
+    const isMatch = reciprocal.rows.length > 0;
+
+    // 4️⃣ Créer match si nécessaire
+    let matchData = null;
+
+    if (isMatch) {
+      const matchResult = await pool.query(
+        `
+        INSERT INTO matches (user1_id, user2_id)
+        VALUES (LEAST($1, $2), GREATEST($1, $2))
+        ON CONFLICT DO NOTHING
+        RETURNING *
+        `,
+        [user_id, ownerId]
+      );
+
+      matchData = matchResult.rows[0] || null;
     }
 
-    // 4️⃣ Créer match
-    const matchResult = await pool.query(
-      `INSERT INTO matches (user1_id, user2_id)
-       VALUES (LEAST($1, $2), GREATEST($1, $2))
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
-      [user_id, ownerId]
-    );
-
+    // 5️⃣ réponse clean
     return res.status(201).json({
-      like: likeResult.rows[0] || null,
-      match: true,
-      matchData: matchResult.rows[0] || null
+      like: alreadyLiked ? null : likeResult.rows[0],
+      match: isMatch,
+      matchData
     });
 
   } catch (err) {

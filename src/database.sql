@@ -20,12 +20,20 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 
 -- 🟢 LIKES
-CREATE TABLE IF NOT EXISTS likes (
-    id SERIAL PRIMARY KEY,
-    sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE likes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  photo_id INTEGER REFERENCES photos(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, photo_id)
 );
+
+SELECT 1
+FROM likes l
+JOIN photos p ON l.photo_id = p.id
+WHERE l.user_id = $1
+AND p.user_id = $2
+LIMIT 1
 
 -- 🟢 MESSAGES
 CREATE TABLE IF NOT EXISTS messages (
@@ -43,6 +51,13 @@ CREATE TABLE IF NOT EXISTS matches (
     user2_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE matches
+ADD CONSTRAINT unique_match UNIQUE (user1_id, user2_id);
+
+WHERE user_id = ownerId
+AND photo_id IN (
+  SELECT id FROM photos WHERE user_id = user_id
+)
 
 -- 🔵 INDEX USERS
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
