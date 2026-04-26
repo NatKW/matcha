@@ -21,13 +21,8 @@ const authMiddleware = (req, res, next) => {
     next();
   } catch (err) {
     console.error("JWT ERROR:", err.message);
-    return res.status(403).json({ error: "Token invalide" });
+    return res.status(403).json({ error: "Token invalide ou expiré" });
   }
 };
-
-if (res.status === 403) {
-  localStorage.removeItem("token");
-  window.location.href = "/login";
-}
 
 export default authMiddleware;

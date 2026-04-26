@@ -10,11 +10,24 @@ matchesRouter.get("/", authMiddleware, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT * FROM matches
-       WHERE user1_id = $1 OR user2_id = $1
-       ORDER BY created_at ASC`,
-      [userId]
-    );
+  `
+  SELECT 
+    m.id,
+    m.created_at,
+    u.id AS user_id,
+    u.username
+  FROM matches m
+  JOIN users u ON (
+    u.id = CASE
+      WHEN m.user1_id = $1 THEN m.user2_id
+      ELSE m.user1_id
+    END
+  )
+  WHERE m.user1_id = $1 OR m.user2_id = $1
+  ORDER BY m.created_at ASC
+  `,
+  [userId]
+);
 
     res.status(200).json(result.rows);
   } catch (err) {
