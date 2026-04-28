@@ -42,12 +42,7 @@ photosRouter.get("/user/:user_id", async (req, res) => {
 photosRouter.post(
   "/",
   authMiddleware,
-  upload.single("image"), (err, req, res, next) => {
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
-    next();
-  },
+  upload.single("photo"),
   async (req, res) => {
     const user_id = req.user.userId;
 

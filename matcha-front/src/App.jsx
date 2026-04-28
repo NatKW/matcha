@@ -2,6 +2,7 @@ import { useState } from "react";
 import Login from "./pages/Login";
 import Upload from "./pages/Upload";
 import Photos from "./pages/Photos";
+import Matches from "./pages/Matches";
 import "./App.css";
 
 function App() {
